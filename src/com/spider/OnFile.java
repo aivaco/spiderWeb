@@ -11,18 +11,19 @@ public class OnFile {
     /**
      * Creates the file with a respective name in local path.
      * @param name
+     * @param type
      */
-    public void createFile(String name)
+    public void createFile(String name, String type)
     {
         try{
-            file = new File(".//"+name+".txt");
+            file = new File(".//"+name+"."+ type);
             if (file.createNewFile())
             {
                 System.out.println("Archivo "+ "name" +".txt creado exitosamente");
             }
             else
             {
-                System.out.println("Error al crear el archivo "+ "name" +".txt");
+                System.out.println("Error al crear el archivo "+ name +".txt");
             }
         }catch(IOException exception){
             exception.printStackTrace();
