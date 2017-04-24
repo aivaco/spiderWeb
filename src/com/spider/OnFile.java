@@ -5,6 +5,8 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import org.apache.commons.io.FileUtils;
 
+import static java.lang.Math.toIntExact;
+
 /**
  * It manages all the functions related to the file that has to be created.
  */
@@ -74,16 +76,31 @@ public class OnFile {
     }
 
     /**
-     * Downloads the respective file.
+     * Downloads the respective file. //If the size of the downloaded file exceeds the maximum size allowed, the file will be erased.(borrar)//
      * @param link
      */
-    public void downloadDocument(URL link)
+    public int downloadDocument(URL link, int current_size, int max_size)
     {
-        try {
-            FileUtils.copyURLToFile(link, file);
-        }catch(IOException exception){
-            exception.printStackTrace();
+        int file_size = 0;                                      //Contains the actual size of the downloaded file.
+        if(current_size < max_size) {
+            try {
+                FileUtils.copyURLToFile(link, file);
+            }catch(IOException exception){
+                exception.printStackTrace();
+            }
+            file_size = toIntExact(FileUtils.sizeOf(file));
+            System.out.println("El archivo: "+file.getName()+" pesa "+ file_size+ " bytes.");
+
+//            if (current_size + file_size < max_size)
+//            {
+//                file.delete();
+//            }
         }
+        else{
+            System.out.println("Imposible descargar más información, el límite es de: " + max_size+"bytes.");
+        }
+        return current_size + file_size;
     }
+
 
 }

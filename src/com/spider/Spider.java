@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,18 +16,26 @@ import java.util.regex.Pattern;
 public class Spider {
 
     private int count = 0;                                                          //Contains the number of files that have been downloaded.
-    private List<String> extractedUrls = new ArrayList<String>();
+    //private List<String> extractedUrls = new ArrayList<String>();
+    HashSet extractedUrls = new HashSet();                                          //Contains the urls that have been extracted from visited pages. HashSet doesn't allow duplicates.
     private URL main_website;                                                       //Contains the url of the website.
-
+    private int current_size = 0;                                                   //Contains the size of the downloaded data.
+    private int max_size = 1000000000;                                             //Maximum size that could be downloaded by the crawler.
+    private String protocol = "";                                                  //Stores the url protocol.
     /**
      * Connects to a website and gets all the urls of the document.
      * @param url
      */
-    public void extractUrl(String url)
+    public void extractsUrls(String url)
     {
+        if(url.contains("https")){                                                  //Checks the url protocol and save it in protocol variable.
+            protocol = "https://";
+        }
+        else{
+            protocol = "http://";
+        }
         //List<String> containedUrls = new ArrayList<String>();
         try {
-
 //            System.out.println(u.getAuthority());                                //Returns the url in a simple form. Example: www.google.com.
 //            System.out.println(u.getRef());                                      //Returns the rest of the URL. Example: /home/theory.txt.
 //            System.out.println(u.getFile());                                     //Returns the rest of the URL. Example: /home/theory.txt.
@@ -36,8 +46,8 @@ public class Spider {
             temporal = main_website.openStream();
             temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
             BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
-           // OnFile newFile = new OnFile();                                                                 //Creates a new file.
-           // newFile.createFile(Integer.toString(count));                                                   //Assigns the respective number of the document to the name of the file.
+            //OnFile newFile = new OnFile();                                                                 //Creates a new file.
+            //newFile.createFile(Integer.toString(count),"txt");                                                   //Assigns the respective number of the document to the name of the file.
 //            Pattern p = Pattern.compile(                                                                   //Pattern that will be used to recognize urls.
 //                    "\\b(((ht|f)tp(s?)\\:\\/\\/|~\\/|\\/)|www.)" +
 //                            "(\\w+:\\w+@)?(([-\\w]+\\.)+(com|org|net|gov" +
@@ -66,8 +76,8 @@ public class Spider {
             e.printStackTrace();
         }
         //Esto hay que borrarlo
-        for (String hi : extractedUrls)
-            System.out.println(hi);
+        //for (String hi : extractedUrls)
+        //    System.out.println(hi);
     }
 
     /**
@@ -76,7 +86,7 @@ public class Spider {
      * @return
      */
     public String cleanUrl(String information){
-        return information.substring(information.indexOf('"')+1, information.lastIndexOf('"'));
+        return fromTheSameWebsite(information.substring(information.indexOf('"')+1, information.lastIndexOf('"')));
     }
 
     /**
@@ -126,16 +136,7 @@ public class Spider {
             URL page = new URL(url);
             OnFile newFile = new OnFile();                                                                 //Creates a new file.
             newFile.createFile(Integer.toString(count), type);                                             //Assigns the respective number of the document to the name of the file.
-//            InputStream temporal = null;
-//            DataInputStream temporal_data;
-//            String information;
-//            temporal = page.openStream();
-//            temporal_data = new DataInputStream(new BufferedInputStream(temporal));                        //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
-//            BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
-//            while ((information = temporal_buffer.readLine()) != null) {                                   //Copies line by line all the information received by the URL class.
-//                newFile.writeLineInFile(information);
-//            }
-            newFile.downloadDocument(page);
+            newFile.downloadDocument(page, current_size,max_size);
         }
      catch (MalformedURLException e) {
         e.printStackTrace();
@@ -158,7 +159,70 @@ public class Spider {
             return url;
         }
         else {
-            return main_website.getAuthority()+url;
+            return protocol+main_website.getAuthority()+"/"+url;
         }
+    }
+
+    /**
+     * Gets the sections where the crawler can not enter.
+     * @param link
+     * @return
+     */
+    public List<String> getRobotTxt(String link){
+        List<String> deniedUrls = new ArrayList<String>();
+        URL url;
+        try{
+            boolean crawler = false;                                                   //Checks if exist some limitations for the crawler.
+            url = new URL(link+"robots.txt");
+            InputStream temporal = null;
+            DataInputStream temporal_data;
+            String information;
+            temporal = url.openStream();
+            temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
+            BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
+
+            while (((information = temporal_buffer.readLine()) != null)) {                         //Copies line by line all the information received by the URL class.
+               if (information.contains("User-agent: *")){
+                   crawler = true;
+               }
+               else if(crawler){
+                   if(information.contains("Disallow: ")){
+                       deniedUrls.add(information.substring(information.indexOf(' '), information.length()));
+                   }
+               }
+
+            }
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //Esto hay que borrarlo
+        for (String hi : deniedUrls)
+            System.out.println(hi);
+        return deniedUrls;
+    }
+
+    public int getCount() {
+        return count;
+    }
+
+    public void setCount(int count) {
+        this.count = count;
+    }
+    public int getCurrent_size() {
+        return current_size;
+    }
+
+    public void setCurrent_size(int current_size) {
+        this.current_size = current_size;
+    }
+
+    public int getMax_size() {
+        return max_size;
+    }
+
+    public void setMax_size(int max_size) {
+        this.max_size = max_size;
     }
 }
