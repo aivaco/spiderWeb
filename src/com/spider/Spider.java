@@ -126,15 +126,16 @@ public class Spider {
             URL page = new URL(url);
             OnFile newFile = new OnFile();                                                                 //Creates a new file.
             newFile.createFile(Integer.toString(count), type);                                             //Assigns the respective number of the document to the name of the file.
-            InputStream temporal = null;
-            DataInputStream temporal_data;
-            String information;
-            temporal = page.openStream();
-            temporal_data = new DataInputStream(new BufferedInputStream(temporal));                        //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
-            BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
-            while ((information = temporal_buffer.readLine()) != null) {                                   //Copies line by line all the information received by the URL class.
-                newFile.writeLineInFile(information);
-            }
+//            InputStream temporal = null;
+//            DataInputStream temporal_data;
+//            String information;
+//            temporal = page.openStream();
+//            temporal_data = new DataInputStream(new BufferedInputStream(temporal));                        //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
+//            BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
+//            while ((information = temporal_buffer.readLine()) != null) {                                   //Copies line by line all the information received by the URL class.
+//                newFile.writeLineInFile(information);
+//            }
+            newFile.downloadDocument(page);
         }
      catch (MalformedURLException e) {
         e.printStackTrace();
@@ -151,13 +152,13 @@ public class Spider {
     public String fromTheSameWebsite(String url){
         if(url.contains("http"))
         {
-           return main_website.getAuthority()+url;
+            return url;
         }
         else if(url.contains("www")){
-            return main_website.getAuthority()+url;
+            return url;
         }
         else {
-            return url;
+            return main_website.getAuthority()+url;
         }
     }
 }

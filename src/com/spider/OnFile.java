@@ -1,6 +1,10 @@
 package com.spider;
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.Charset;
+import org.apache.commons.io.FileUtils;
+
 /**
  * It manages all the functions related to the file that has to be created.
  */
@@ -19,7 +23,7 @@ public class OnFile {
             file = new File(".//"+name+"."+ type);
             if (file.createNewFile())
             {
-                System.out.println("Archivo "+ "name" +".txt creado exitosamente");
+                System.out.println("Archivo "+ name +".txt creado exitosamente");
             }
             else
             {
@@ -69,5 +73,17 @@ public class OnFile {
         writeInFile(data);
     }
 
+    /**
+     * Downloads the respective file.
+     * @param link
+     */
+    public void downloadDocument(URL link)
+    {
+        try {
+            FileUtils.copyURLToFile(link, file);
+        }catch(IOException exception){
+            exception.printStackTrace();
+        }
+    }
 
 }
