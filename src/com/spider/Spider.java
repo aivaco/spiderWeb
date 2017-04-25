@@ -3,10 +3,7 @@ package com.spider;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,68 +13,76 @@ import java.util.regex.Pattern;
 public class Spider {
 
     private int count = 0;                                                          //Contains the number of files that have been downloaded.
-    //private List<String> extractedUrls = new ArrayList<String>();
-    HashSet extractedUrls = new HashSet();                                          //Contains the urls that have been extracted from visited pages. HashSet doesn't allow duplicates.
+    private HashMap foundUrls = new HashMap();                                      //Contains the urls that have been extracted from visited pages.
+    private List<String> toVisitUrls = new ArrayList<String>();                     //Contains the urls that are going to be visited.
+    private HashSet visitedUrls = new HashSet();                                    //Contains the pages that had been visited.
     private URL main_website;                                                       //Contains the url of the website.
     private int current_size = 0;                                                   //Contains the size of the downloaded data.
-    private int max_size = 1000000000;                                             //Maximum size that could be downloaded by the crawler.
-    private String protocol = "";                                                  //Stores the url protocol.
+    private int max_size = 1000000000;                                              //Maximum size that could be downloaded by the crawler.
+    private String protocol = "";                                                   //Stores the url protocol.
+    private HashMap deniedUrls = new HashMap();                                     //Contains the disallowed urls.
     /**
      * Connects to a website and gets all the urls of the document.
      * @param url
      */
     public void extractsUrls(String url)
     {
-        if(url.contains("https")){                                                  //Checks the url protocol and save it in protocol variable.
-            protocol = "https://";
-        }
-        else{
-            protocol = "http://";
-        }
-        //List<String> containedUrls = new ArrayList<String>();
-        try {
-//            System.out.println(u.getAuthority());                                //Returns the url in a simple form. Example: www.google.com.
-//            System.out.println(u.getRef());                                      //Returns the rest of the URL. Example: /home/theory.txt.
-//            System.out.println(u.getFile());                                     //Returns the rest of the URL. Example: /home/theory.txt.
-            main_website = new URL(url);
-            InputStream temporal = null;
-            DataInputStream temporal_data;
-            String information;
-            temporal = main_website.openStream();
-            temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
-            BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
-            //OnFile newFile = new OnFile();                                                                 //Creates a new file.
-            //newFile.createFile(Integer.toString(count),"txt");                                                   //Assigns the respective number of the document to the name of the file.
-//            Pattern p = Pattern.compile(                                                                   //Pattern that will be used to recognize urls.
-//                    "\\b(((ht|f)tp(s?)\\:\\/\\/|~\\/|\\/)|www.)" +
-//                            "(\\w+:\\w+@)?(([-\\w]+\\.)+(com|org|net|gov" +
-//                            "|mil|biz|info|mobi|name|aero|jobs|museum" +
-//                            "|travel|[a-z]{2}))(:[\\d]{1,5})?" +
-//                            "(((\\/([-\\w~!$+|.,=]|%[a-f\\d]{2})+)+|\\/)+|\\?|#)?" +
-//                            "((\\?([-\\w~!$+|.,*:]|%[a-f\\d{2}])+=?" +
-//                            "([-\\w~!$+|.,*:=]|%[a-f\\d]{2})*)" +
-//                            "(&(?:[-\\w~!$+|.,*:]|%[a-f\\d{2}])+=?" +
-//                            "([-\\w~!$+|.,*:=]|%[a-f\\d]{2})*)*)*" +
-//                            "(#([-\\w~!$+|.,*:=]|%[a-f\\d]{2})*)?\\b");
-            Pattern p = Pattern.compile("href=\"(.*?)\"");
-            Matcher matcher;                                                                            //Will be used to apply the pattern to a string.
-            String temp;                                                                                //Stores the url without all the other characters from the line.
-
-            while ((information = temporal_buffer.readLine()) != null) {                                //Copies line by line all the information received by the URL class.
-                //newFile.writeLineInFile(information);
-                matcher = p.matcher(information);
-              if(matcher.find()) {
-                  extractedUrls.add(cleanUrl(matcher.group()));
-                }
+        getRobotTxt(url);                                                                  //Extracts all the urls that aren't allowed to be visited.
+        if (!deniedUrls.containsValue("/")) {                                       //If it's possible to explore the website.
+            if (url.contains("https")) {                                                  //Checks the url protocol and save it in protocol variable.
+                protocol = "https://";
+            } else {
+                protocol = "http://";
             }
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+            try {
+                //            System.out.println(u.getAuthority());                                //Returns the url in a simple form. Example: www.google.com.
+                //            System.out.println(u.getRef());                                      //Returns the rest of the URL. Example: /home/theory.txt.
+                //            System.out.println(u.getFile());                                     //Returns the rest of the URL. Example: /home/theory.txt.
+                main_website = new URL(url);
+                InputStream temporal = null;
+                DataInputStream temporal_data;
+                String information;
+                temporal = main_website.openStream();
+                temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
+                BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));      //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
+                Pattern p = Pattern.compile("href=\"(.*?)\"");
+                Matcher matcher;                                                                                //Will be used to apply the pattern to a string.
+                String temp;                                                                                    //Stores the url without all the other characters from the line.
+
+                while ((information = temporal_buffer.readLine()) != null) {                                    //Copies line by line all the information received by the URL class.
+                    matcher = p.matcher(information);
+                    if (matcher.find()) {
+                        temp = cleanUrl(matcher.group());
+                        if (!foundUrls.containsValue(temp)) {                                                   //Checks if is not repeated.
+                            if(!searchInRobots(temp))                                                           //Checks if is allowed by robots.txt
+                            foundUrls.put(cleanUrl(matcher.group()), cleanUrl(matcher.group()));
+                        }
+
+                    }
+                }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            //Para imprimir:
+            //        for (String hi : extractedUrls)
+            //            System.out.println(hi);
+
+            // Get a set of the entries
+            //        Set set = foundUrls.entrySet();
+            //
+            //        // Get an iterator
+            //        Iterator i = set.iterator();
+            //
+            //        // Display elements
+            //        while(i.hasNext()) {
+            //            Map.Entry me = (Map.Entry)i.next();
+            //            //System.out.print(me.getKey() + ": ");
+            //            System.out.println(me.getValue());
+            //        }
         }
-        //Esto hay que borrarlo
-        //for (String hi : extractedUrls)
-        //    System.out.println(hi);
     }
 
     /**
@@ -168,8 +173,8 @@ public class Spider {
      * @param link
      * @return
      */
-    public List<String> getRobotTxt(String link){
-        List<String> deniedUrls = new ArrayList<String>();
+    public void  getRobotTxt(String link){
+
         URL url;
         try{
             boolean crawler = false;                                                   //Checks if exist some limitations for the crawler.
@@ -180,6 +185,7 @@ public class Spider {
             temporal = url.openStream();
             temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
             BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
+            String temp;
 
             while (((information = temporal_buffer.readLine()) != null)) {                         //Copies line by line all the information received by the URL class.
                if (information.contains("User-agent: *")){
@@ -187,7 +193,8 @@ public class Spider {
                }
                else if(crawler){
                    if(information.contains("Disallow: ")){
-                       deniedUrls.add(information.substring(information.indexOf(' '), information.length()));
+                       temp = information.substring(information.indexOf(' '), information.length());
+                       deniedUrls.put(temp,temp);
                    }
                }
 
@@ -198,9 +205,43 @@ public class Spider {
             e.printStackTrace();
         }
         //Esto hay que borrarlo
-        for (String hi : deniedUrls)
-            System.out.println(hi);
-        return deniedUrls;
+//        for (String hi : deniedUrls)
+//            System.out.println(hi);
+
+//        // Get a set of the entries
+//        Set set = deniedUrls.entrySet();
+//
+//        // Get an iterator
+//        Iterator i = set.iterator();
+//
+//        // Display elements
+//        while(i.hasNext()) {
+//            Map.Entry me = (Map.Entry) i.next();
+//            //System.out.print(me.getKey() + ": ");
+//            System.out.println(me.getValue());
+//        }
+    }
+
+    /**
+     * Looks for a restriction with the respective url.
+     * @param url
+     * @return
+     */
+    private boolean searchInRobots(String url)
+    {
+        boolean stop = false;
+        Set set = deniedUrls.entrySet();            // Gets a set of the entries
+        Iterator i = set.iterator();                // Gets an iterator
+        String temp;
+        while(!stop && i.hasNext()) {               // Iterates elements
+            Map.Entry me = (Map.Entry) i.next();
+            temp = (String)me.getValue();
+            if(temp.contains("*")){
+                temp = temp.substring(temp.indexOf('*')+1, temp.length());
+            }
+            stop = url.contains(temp);
+        }
+        return stop;
     }
 
     public int getCount() {
