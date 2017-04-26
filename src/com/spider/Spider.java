@@ -4,32 +4,67 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * It will manage all the functions of the spider bot.
  */
-public class Spider {
+public class Spider implements Runnable {
 
     private int count = 0;                                                          //Contains the number of files that have been downloaded.
-    private HashMap foundUrls = new HashMap();                                      //Contains the urls that have been extracted from visited pages.
-    private List<String> toVisitUrls = new ArrayList<String>();                     //Contains the urls that are going to be visited.
+    private HashMap foundUrls;                                                      //Contains the urls that have been extracted from visited pages.
+    private List<String> toVisitUrls;                                               //Contains the urls that are going to be visited.
     private HashSet visitedUrls = new HashSet();                                    //Contains the pages that had been visited.
     private URL main_website;                                                       //Contains the url of the website.
     private int current_size = 0;                                                   //Contains the size of the downloaded data.
-    private int max_size = 1000000000;                                              //Maximum size that could be downloaded by the crawler.
+    private int max_size = 0;                                                       //Maximum size that could be downloaded by the crawler.
     private String protocol = "";                                                   //Stores the url protocol.
-    private HashMap deniedUrls = new HashMap();                                     //Contains the disallowed urls.
+    private HashMap deniedUrls = new HashMap();                                     //Contains the disallowed urls by robots.txt.
+    private String url;                                                             //Contains the seed url.
+    private static Semaphore mutex_visited = new Semaphore(1);               //Uses to control the access to visitedUrl.
+    private static Semaphore mutex_current_size = new Semaphore(1);          //Uses to control the access to current_size.
+
+    public Spider(String url, int max_size){
+        this.max_size = max_size;
+        this.url = url;
+        foundUrls = new HashMap();
+        toVisitUrls = new ArrayList<String>();
+    }
+
+    @Override
+    public void run()
+    {
+        String url_to_visit;
+        extractsUrls(url);                                          //Extracts all the urls that it has to visit.
+        for( int i = 0; i<toVisitUrls.size(); ++i){                 //Starts to explore all the urls of one level.
+            url_to_visit = toVisitUrls.get(i);
+            try {
+                mutex_visited.acquire();
+                if(!visitedUrls.contains(url_to_visit)){            //Tries to visit all the extracted urls.
+                    manageUrl(url_to_visit);
+                    toVisitUrls.remove(i);
+                    visitedUrls.add(url_to_visit);
+                }
+                mutex_visited.release();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+    }
     /**
      * Connects to a website and gets all the urls of the document.
      * @param url
      */
     public void extractsUrls(String url)
     {
-        getRobotTxt(url);                                                                  //Extracts all the urls that aren't allowed to be visited.
-        if (!deniedUrls.containsValue("/")) {                                       //If it's possible to explore the website.
-            if (url.contains("https")) {                                                  //Checks the url protocol and save it in protocol variable.
+        boolean exists_robots = false;                                                                     //It's false if there is not robots.txt in the site that is visiting.
+        exists_robots = getRobotTxt(url);                                                                  //Extracts all the urls that aren't allowed to be visited.
+        if (!deniedUrls.containsValue("/")) {                                                        //If it's possible to explore the website.
+            if (url.contains("https")) {                                                                   //Checks the url protocol and save it in protocol variable.
                 protocol = "https://";
             } else {
                 protocol = "http://";
@@ -54,8 +89,14 @@ public class Spider {
                     if (matcher.find()) {
                         temp = cleanUrl(matcher.group());
                         if (!foundUrls.containsValue(temp)) {                                                   //Checks if is not repeated.
-                            if(!searchInRobots(temp))                                                           //Checks if is allowed by robots.txt
-                            foundUrls.put(cleanUrl(matcher.group()), cleanUrl(matcher.group()));
+                            if(exists_robots) {
+                                if (!searchInRobots(temp)){                                                           //Checks if is allowed by robots.txt
+                                    foundUrls.put(cleanUrl(matcher.group()), cleanUrl(matcher.group()));
+                                }
+                            }
+                            else {
+                                foundUrls.put(cleanUrl(matcher.group()), cleanUrl(matcher.group()));
+                            }
                         }
 
                     }
@@ -66,22 +107,6 @@ public class Spider {
                 e.printStackTrace();
             }
 
-            //Para imprimir:
-            //        for (String hi : extractedUrls)
-            //            System.out.println(hi);
-
-            // Get a set of the entries
-            //        Set set = foundUrls.entrySet();
-            //
-            //        // Get an iterator
-            //        Iterator i = set.iterator();
-            //
-            //        // Display elements
-            //        while(i.hasNext()) {
-            //            Map.Entry me = (Map.Entry)i.next();
-            //            //System.out.print(me.getKey() + ": ");
-            //            System.out.println(me.getValue());
-            //        }
         }
     }
 
@@ -141,12 +166,16 @@ public class Spider {
             URL page = new URL(url);
             OnFile newFile = new OnFile();                                                                 //Creates a new file.
             newFile.createFile(Integer.toString(count), type);                                             //Assigns the respective number of the document to the name of the file.
+            mutex_current_size.acquire();
             newFile.downloadDocument(page, current_size,max_size);
+            mutex_current_size.release();
         }
      catch (MalformedURLException e) {
         e.printStackTrace();
      } catch (IOException e) {
         e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -173,7 +202,7 @@ public class Spider {
      * @param link
      * @return
      */
-    public void  getRobotTxt(String link){
+    public boolean  getRobotTxt(String link){
 
         URL url;
         try{
@@ -220,6 +249,7 @@ public class Spider {
 //            //System.out.print(me.getKey() + ": ");
 //            System.out.println(me.getValue());
 //        }
+        return true;
     }
 
     /**
