@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,6 +27,7 @@ public class Spider implements Runnable {
     private String url;                                                             //Contains the seed url.
     private static Semaphore mutex_visited = new Semaphore(1);               //Uses to control the access to visitedUrl.
     private static Semaphore mutex_current_size = new Semaphore(1);          //Uses to control the access to current_size.
+    private CyclicBarrier barrier = new CyclicBarrier(3);                     //p
 
     public Spider(String url, int max_size){
         this.max_size = max_size;
@@ -38,22 +41,33 @@ public class Spider implements Runnable {
     {
         String url_to_visit;
         extractsUrls(url);                                          //Extracts all the urls that it has to visit.
-        for( int i = 0; i<toVisitUrls.size(); ++i){                 //Starts to explore all the urls of one level.
-            url_to_visit = toVisitUrls.get(i);
-            try {
-                mutex_visited.acquire();
-                if(!visitedUrls.contains(url_to_visit)){            //Tries to visit all the extracted urls.
-                    manageUrl(url_to_visit);
-                    toVisitUrls.remove(i);
-                    visitedUrls.add(url_to_visit);
+        while (current_size < max_size) {
+
+            for (int i = 0; i < toVisitUrls.size(); ++i) {              //Starts to explore all the urls of one level.
+                url_to_visit = toVisitUrls.get(i);
+                try {
+                    mutex_visited.acquire();
+                    if (!visitedUrls.contains(url_to_visit)) {            //Tries to visit all the extracted urls.
+                        manageUrl(url_to_visit);
+                        toVisitUrls.remove(i);
+                        visitedUrls.add(url_to_visit);
+                    }
+                    mutex_visited.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                mutex_visited.release();
+            }
+            try {
+                barrier.await();
+                toVisitUrls.clear();
+
+
             } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (BrokenBarrierException e) {
                 e.printStackTrace();
             }
         }
-
-
     }
     /**
      * Connects to a website and gets all the urls of the document.
