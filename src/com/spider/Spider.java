@@ -27,7 +27,7 @@ public class Spider implements Runnable {
     private String url;                                                             //Contains the seed url.
     private static Semaphore mutex_visited = new Semaphore(1);               //Uses to control the access to visitedUrl.
     private static Semaphore mutex_current_size = new Semaphore(1);          //Uses to control the access to current_size.
-    private CyclicBarrier barrier = new CyclicBarrier(3);                     //p
+    private CyclicBarrier barrier = new CyclicBarrier(3);                    //Establishes a barrier that don't allow threads to keep working until all of them reach the limit.
 
     public Spider(String url, int max_size){
         this.max_size = max_size;
@@ -40,11 +40,24 @@ public class Spider implements Runnable {
     public void run()
     {
         String url_to_visit;
-        extractsUrls(url);                                          //Extracts all the urls that it has to visit.
+        extractsUrls(url);                                              //Extracts all the urls that it has to visit.
+        //Downloads the file of the first url
+        try {
+            mutex_visited.acquire();
+            if (!visitedUrls.contains(url)) {
+                manageUrl(url);
+                visitedUrls.add(url);
+            }
+            mutex_visited.release();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        toVisitUrls = (List<String>) foundUrls.values();                 //All the extracted urls pass to be part of the list: toVisitUrls.
+        foundUrls.clear();
         while (current_size < max_size) {
-
             for (int i = 0; i < toVisitUrls.size(); ++i) {              //Starts to explore all the urls of one level.
                 url_to_visit = toVisitUrls.get(i);
+                extractsUrls(url_to_visit);
                 try {
                     mutex_visited.acquire();
                     if (!visitedUrls.contains(url_to_visit)) {            //Tries to visit all the extracted urls.
