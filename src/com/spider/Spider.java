@@ -58,12 +58,14 @@ public class Spider implements Runnable {
             for (int i = 0; i < toVisitUrls.size(); ++i) {              //Starts to explore all the urls of one level.
                 url_to_visit = toVisitUrls.get(i);
                 extractsUrls(url_to_visit);
+                System.out.println("Se exploró y se extrayeron los links de la url: " + url_to_visit);
                 try {
                     mutex_visited.acquire();
                     if (!visitedUrls.contains(url_to_visit)) {            //Tries to visit all the extracted urls.
                         manageUrl(url_to_visit);
                         toVisitUrls.remove(i);
                         visitedUrls.add(url_to_visit);
+                        System.out.println("Se descargó el archivo de la url: " + url_to_visit);
                     }
                     mutex_visited.release();
                 } catch (InterruptedException e) {
@@ -73,8 +75,6 @@ public class Spider implements Runnable {
             try {
                 barrier.await();
                 toVisitUrls.clear();
-
-
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (BrokenBarrierException e) {
