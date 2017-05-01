@@ -2,8 +2,13 @@ package com.spider;
 public class Main {
 
     public static void main(String[] args) {
-        Spider a = new Spider();
-        //a.extractsUrls("http://www.ebay.com");
+
+        WebCrawler webCrawler = new WebCrawler();
+        webCrawler.loadSeeds();
+        webCrawler.startThreads();
+
+        //Spider a = new Spider();
+        //a.extractsURLs("http://www.ebay.com");
         //a.manageUrl("http://www.pdf995.com/samples/pdf.pdf");
         //a.getRobotTxt("https://www.facebook.com/");
     }
