@@ -24,10 +24,10 @@ public class Spider implements Runnable {
     private static int current_size = 0;                                                   //Contains the size of the downloaded data.
 
     private static int currentLevel = 0;
-    private static int maxLevel = 5;                                                        // TODO This must be an user input
+    private static int max_level; //= 5;                                                        //Controls the quantity of levels that the spider could go deep.
 
     private static int currentDocuments = 0;
-    private static int maxDocuments = 100;                                                 // TODO This must be an user input
+    private static int max_documents; //= 100;                                                 // TODO This must be an user input
 
     private static Semaphore mutex_current_size = new Semaphore(1);                     //Controls the access to current_size.
     private static Semaphore mutex_foundURLs = new Semaphore(1);                        //Controls the access to foundURLs hashset.
@@ -49,7 +49,7 @@ public class Spider implements Runnable {
     private String threadName;                                                      //Contains the name that identifies each thread
 
     private URL main_website;                                                       //Contains the url of the website.
-    private int max_size = 10000 * 1024;                                              //Maximum size that could be downloaded by the crawler.
+    private int max_size; //= 10000 * 1024;                                              //Maximum size that could be downloaded by the crawler.
     private String protocol = "";                                                   //Stores the url protocol.
     private HashMap deniedUrls = new HashMap();                                     //Contains the disallowed urls by robots.txt.
 
@@ -61,22 +61,25 @@ public class Spider implements Runnable {
     private boolean alreadyVisited = false;
 
 
-    public Spider(String threadName, List<String> seed) {
+    public Spider(String threadName, List<String> seed, int max_size, int max_documents, int max_level) {
         this.threadName = threadName;
         this.toVisitURLs = new ArrayList<>(seed);
+        this.max_size = max_size;
+        this.max_documents = max_documents;
+        this.max_level = max_level;
         System.out.println(threadName + " " + toVisitURLs);
     }
 
     @Override
     public void run() {
 
-        while (currentLevel <= maxLevel) {
+        while (currentLevel <= max_level) {
 
             if (current_size >= max_size) {
-                currentLevel = maxLevel;
+                currentLevel = max_level;
             }
-            if (currentDocuments >= maxDocuments) {
-                currentLevel = maxLevel;
+            if (currentDocuments >= max_documents) {
+                currentLevel = max_level;
             }
 
             boolean seed = true;
@@ -109,7 +112,7 @@ public class Spider implements Runnable {
                         itr.remove();
 
                         /*Checks if the currentLevel isn't the last level*/
-                        if (maxLevel >= currentLevel)
+                        if (max_level >= currentLevel)
                         /*If it isn't the last level then it extracts the URLs in the file*/
                             extractsURLs(URL);
                     }
@@ -365,6 +368,7 @@ public class Spider implements Runnable {
 
             mutex_current_size.acquire();
             current_size = newFile.downloadDocument(page, current_size, max_size);
+            newFile.writeUrlInFile(url,type);
             mutex_current_size.release();
 
             success = true;
@@ -481,27 +485,4 @@ public class Spider implements Runnable {
         return stop;
     }
 
-    public int getCount() {
-        return count;
-    }
-
-    public void setCount(int count) {
-        this.count = count;
-    }
-
-    public int getCurrent_size() {
-        return current_size;
-    }
-
-    public void setCurrent_size(int current_size) {
-        this.current_size = current_size;
-    }
-
-    public int getMax_size() {
-        return max_size;
-    }
-
-    public void setMax_size(int max_size) {
-        this.max_size = max_size;
-    }
 }
