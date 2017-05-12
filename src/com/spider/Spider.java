@@ -26,13 +26,14 @@ public class Spider implements Runnable {
     private static int currentLevel = 0;
     private static int max_level; //= 5;                                                        //Controls the quantity of levels that the spider could go deep.
 
-    private static int currentDocuments = 0;
+    //private static int currentDocuments = 0;
     private static int max_documents; //= 100;                                                 //Contains the maximum files that could be downloaded.
 
     private static Semaphore mutex_current_size = new Semaphore(1);                     //Controls the access to current_size.
     private static Semaphore mutex_foundURLs = new Semaphore(1);                        //Controls the access to foundURLs hashset.
     private static Semaphore mutex_count = new Semaphore(1);                            //Controls the access to count.
     private static Semaphore mutex_visitedURLs = new Semaphore(1);
+    private static Semaphore mutex_current_level = new Semaphore(1);
 
     private static final int NUM_THREADS = 4;                                                    // Contains the total number of threads
     private static CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);                       //Establishes a barrier that doesn't allow threads to keep working until all of them reach the limit.
@@ -73,14 +74,14 @@ public class Spider implements Runnable {
     @Override
     public void run() {
 
-        while (currentLevel <= max_level) {
+        while (conditions()) {
 
-            if (current_size >= max_size) {
-                currentLevel = max_level;
-            }
-            if (currentDocuments >= max_documents) {
-                currentLevel = max_level;
-            }
+//            if (current_size >= max_size) {
+//                currentLevel = max_level;
+//            }
+//            if (currentDocuments >= max_documents) {
+//                currentLevel = max_level;
+//            }
 
             boolean seed = true;
             changeLevel(seed);  //Splits the seed into different sublist
@@ -106,15 +107,22 @@ public class Spider implements Runnable {
                         if (!manageUrl(URL)) {
                         /*If the download wasn't successful then it removes that URL from the list of visited URLs*/
                             //visitedURLs.remove(URL);    //TODO check if it is needed to remove the URL if the download failed
-                            System.out.println(URL + " no pudo descargarse correctamente.");
+                            System.out.println(URL + " no se descargó.");
                         }
                         /*Removes the URL from the thread_toVisitURLs list*/
                         itr.remove();
 
                         /*Checks if the currentLevel isn't the last level*/
-                        if (max_level >= currentLevel)
-                        /*If it isn't the last level then it extracts the URLs in the file*/
-                            extractsURLs(URL);
+                        try {
+                            mutex_current_level.acquire();
+                            if (max_level >= currentLevel) {
+                                /*If it isn't the last level then it extracts the URLs in the file*/
+                                extractsURLs(URL);
+                            }
+                            mutex_current_level.release();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
 
@@ -175,6 +183,35 @@ public class Spider implements Runnable {
 //            }
     }
 
+    /**
+     * It is used to control the repetitions of the process.
+     * @return condition
+     */
+    public boolean conditions()
+    {
+        boolean condition = true;
+        try {
+            mutex_current_level.acquire();
+            if (currentLevel > max_level) {
+                condition = false;
+            }
+            mutex_current_level.release();
+            mutex_current_size.acquire();
+            if (current_size > max_size && condition) {
+                condition = false;
+            }
+            mutex_current_size.release();
+            mutex_count.acquire();
+            if (count > max_documents && condition) {
+                condition = false;
+            }
+            mutex_count.release();
+        }catch (InterruptedException e){
+            e.printStackTrace();
+        }
+        return condition;
+    }
+
 
     /**
      * Handles the level change when all the URLs in the current level have been visited
@@ -194,8 +231,14 @@ public class Spider implements Runnable {
             secondThread_UpperBound = firstThread_UpperBound * 2;
             thirdThread_UpperBound = firstThread_UpperBound * 3;
             fourthThread_UpperBound = toVisitURLs.size();
+            try{
+                mutex_current_level.acquire();
+                ++currentLevel;
+                mutex_current_level.release();
+            }catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
-            ++currentLevel;
         }
         try {
             /*Makes all the threads wait for the others*/
