@@ -139,48 +139,7 @@ public class Spider implements Runnable {
             }
 
         }
-
-//        String url_to_visit;
-//        extractsURLs(url);                                              //Extracts all the urls that it has to visit.
-//        //Downloads the file of the first url
-//        try {
-//            mutex_visited.acquire();
-//            if (!visitedURLs.contains(url)) {
-//                manageUrl(url);
-//                visitedURLs.add(url);
-//            }
-//            mutex_visited.release();
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-//        toVisitURLs = (List<String>) foundURLs.values();                 //All the extracted urls pass to be part of the list: toVisitURLs.
-//        foundURLs.clear();
-//        while (current_size < max_size) {
-//            for (int i = 0; i < toVisitURLs.size(); ++i) {              //Starts to explore all the urls of one currentLevel.
-//                url_to_visit = toVisitURLs.get(i);
-//                extractsURLs(url_to_visit);
-//                try {
-//                    mutex_visited.acquire();
-//                    if (!visitedURLs.contains(url_to_visit)) {            //Tries to visit all the extracted urls.
-//                        manageUrl(url_to_visit);
-//                        toVisitURLs.remove(i);
-//                        visitedURLs.add(url_to_visit);
-//                    }
-//                    mutex_visited.release();
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//            try {
-//                barrier.await();
-//                toVisitURLs.clear();
-//
-//
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            } catch (BrokenBarrierException e) {
-//                e.printStackTrace();
-//            }
+        
     }
 
     /**
