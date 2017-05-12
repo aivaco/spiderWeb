@@ -139,7 +139,7 @@ public class Spider implements Runnable {
             }
 
         }
-        
+
     }
 
     /**
@@ -150,6 +150,7 @@ public class Spider implements Runnable {
     {
         boolean condition = true;
         try {
+            //TODO: es necesaria una barrrera acá?
             mutex_current_level.acquire();
             if (currentLevel > max_level) {
                 condition = false;
