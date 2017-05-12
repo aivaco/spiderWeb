@@ -5,7 +5,8 @@ public class Main {
 
         WebCrawler webCrawler = new WebCrawler();
         webCrawler.loadSeeds();
-        webCrawler.startThreads();
+        //webCrawler.startThreads(Integer.parseInt(args[0]),Integer.parseInt(args[1]),Integer.parseInt(args[2]));
+        webCrawler.startThreads(300,200,5);
 
         //Spider a = new Spider();
         //a.extractsURLs("http://www.ebay.com");

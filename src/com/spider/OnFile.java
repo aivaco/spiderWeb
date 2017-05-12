@@ -20,6 +20,21 @@ import static java.lang.Math.toIntExact;
 public class OnFile {
 
     private File file;
+    private File url;
+
+
+    public void createUrlFile(){
+        try {
+            url = new File(".//urls.txt");
+            if (url.createNewFile()) {
+                System.out.println("Archivo urls.txt creado exitosamente.");
+            } else {
+                System.out.println("Error al crear el archivo urls.txt.");
+            }
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
+    }
 
     /**
      * Creates the file with a respective name in local path.
@@ -47,7 +62,8 @@ public class OnFile {
      */
     private void writeInFile(String data) {
         try {
-            FileWriter writer = new FileWriter(file, true);
+            url = new File(".//urls.txt");
+            FileWriter writer = new FileWriter(url, true);
             writer.write(data);
             writer.flush();
             writer.close();

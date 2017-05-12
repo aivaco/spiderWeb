@@ -18,16 +18,16 @@ public class Spider implements Runnable {
 
     /*Shared variables*/
     private static int count = 0;                                                          //Contains the number of files that have been downloaded.
-    private static HashMap foundURLs = new HashMap();                                                      //Contains the urls that have been extracted from visited pages.
+    private static HashMap foundURLs = new HashMap();                                      //Contains the urls that have been extracted from visited pages.
     private static List<String> toVisitURLs;                                              //Contains the urls that are going to be visited.
-    private static HashSet visitedURLs = new HashSet();                                                    //Contains the pages that had been visited.
-    private static int current_size = 0;                                                   //Contains the size of the downloaded data.
+    private static HashSet visitedURLs = new HashSet();                                   //Contains the pages that had been visited.
+    private static int current_size = 0;                                                  //Contains the size of the downloaded data.
 
     private static int currentLevel = 0;
     private static int max_level; //= 5;                                                        //Controls the quantity of levels that the spider could go deep.
 
     private static int currentDocuments = 0;
-    private static int max_documents; //= 100;                                                 // TODO This must be an user input
+    private static int max_documents; //= 100;                                                 //Contains the maximum files that could be downloaded.
 
     private static Semaphore mutex_current_size = new Semaphore(1);                     //Controls the access to current_size.
     private static Semaphore mutex_foundURLs = new Semaphore(1);                        //Controls the access to foundURLs hashset.
@@ -329,9 +329,12 @@ public class Spider implements Runnable {
             } else if (url.contains(".pdf")) {
                 success = downloadDocument(fromTheSameWebsite(url), "pdf");
             } else if (url.contains(".doc")) {
-                success = downloadDocument(fromTheSameWebsite(url), "doc");
-            } else if (url.contains(".docx")) {
-                success = downloadDocument(fromTheSameWebsite(url), "docs");
+                if (url.contains(".docx")){
+                    success = downloadDocument(fromTheSameWebsite(url), "docx");
+                }
+                else {
+                    success = downloadDocument(fromTheSameWebsite(url), "doc");
+                }
             } else if (url.contains(".odt")) {
                 success = downloadDocument(fromTheSameWebsite(url), "odt");
             } else if (url.contains(".txt")) {

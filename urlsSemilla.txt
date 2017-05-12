@@ -1,1 +1,4 @@
-www.google.com Url
+http://www.google.com/
+http://kumbaya.name/
+http://www.wikipedia.com/
+http://ecci.ucr.ac.cr/
