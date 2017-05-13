@@ -7,6 +7,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -73,6 +74,23 @@ public class OnFile {
     }
 
     /**
+     * It's only used for write in a file.
+     *
+     * @param data
+     */
+    public void writeInBackUpFile(String data, String filename) {
+        try {
+            url = new File(".//" + filename + ".txt");
+            FileWriter writer = new FileWriter(url, true);
+            writer.write(data);
+            writer.flush();
+            writer.close();
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    /**
      * It will be use to write the url and the document type in urls.txt file.
      *
      * @param url
@@ -95,6 +113,19 @@ public class OnFile {
         Charset.forName("UTF-8").encode(data);              //Sets the string to UTF-8.
         writeInFile(data);
     }
+
+    /**
+     * Writes a line in a specific file.
+     *
+     * @param data
+     */
+    public void writeLineInBackUpFile(String data, String filename) {
+        data = data + "\n";
+        Charset.forName("UTF-8").encode(data);              //Sets the string to UTF-8.
+        writeInBackUpFile(data, filename);
+    }
+
+
 
     /**
      * Downloads the respective file. //If the size of the downloaded file exceeds the maximum size allowed, the file will be erased.(borrar)//
@@ -146,5 +177,64 @@ public class OnFile {
         }
         return list;
     }
+    /**
+     * Reads a file and put line by line in a HashSet.
+     *
+     * @param name
+     * @return
+     */
+    public HashSet<String> readFileHash(String name) {
+
+        HashSet<String> hash = new HashSet<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(name))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // process the line.
+                hash.add(line);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return hash;
+    }
+
+    /**
+     * Reads the parameters file and extracts each line into an array.
+     * @param name
+     * @return
+     */
+
+    public int[] readParameters(String name)
+    {
+        int [] parameters = new int [6];
+        try (BufferedReader br = new BufferedReader(new FileReader(name))) {
+            String line;
+            int index = 0;
+            while ((line = br.readLine()) != null) {
+                // process the line.
+                parameters[index]=Integer.parseInt(line);
+                ++index;
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return parameters;
+    }
+
+    public boolean clearFile(String name, String type) {
+
+        file = new File(".//" + name + "." + type);
+        if(file.delete()) {
+            int i = 0;
+        }
+
+        return true;
+    }
+
 
 }

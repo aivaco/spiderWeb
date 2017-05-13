@@ -21,13 +21,13 @@ public class WebCrawler {
 
     int level = 5;
 
-    public void startThreads (int max_size, int max_document, int max_level) {
+    public void startThreads (int max_size, int max_document, int max_level, boolean restore_data) {
 
         max_size = max_size*1000000;
-        Spider firstSpider = new Spider("Spider1", toVisitURLs, max_size, max_document, max_level);
-        Spider secondSpider = new Spider ("Spider2", toVisitURLs, max_size, max_document, max_level);
-        Spider thirdSpider  = new Spider("Spider3", toVisitURLs, max_size, max_document, max_level);
-        Spider fourthSpider = new Spider("Spider4", toVisitURLs, max_size, max_document, max_level);
+        Spider firstSpider = new Spider("Spider1", toVisitURLs, max_size, max_document, max_level, restore_data);
+        Spider secondSpider = new Spider ("Spider2", toVisitURLs, max_size, max_document, max_level, restore_data);
+        Spider thirdSpider  = new Spider("Spider3", toVisitURLs, max_size, max_document, max_level, restore_data);
+        Spider fourthSpider = new Spider("Spider4", toVisitURLs, max_size, max_document, max_level, restore_data);
 
         /*Creates the four threads that will crawl the URLs*/
         Thread firstThread = new Thread (firstSpider);
@@ -46,5 +46,7 @@ public class WebCrawler {
         file.createUrlFile();
         toVisitURLs = file.readFile(".//urlsSemilla.txt");
     }
+
+
 
 }

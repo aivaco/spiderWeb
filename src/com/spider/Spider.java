@@ -60,29 +60,35 @@ public class Spider implements Runnable {
     private List<String> thread_toVisitURLs;
 
     private boolean alreadyVisited = false;
+    private boolean restore_data = false;       //It is used to check if the information has to be restored from the backup.
 
 
-    public Spider(String threadName, List<String> seed, int max_size, int max_documents, int max_level) {
+    public Spider(String threadName, List<String> seed, int max_size, int max_documents, int max_level, boolean restore_data) {
         this.threadName = threadName;
         this.toVisitURLs = new ArrayList<>(seed);
         this.max_size = max_size;
         this.max_documents = max_documents;
         this.max_level = max_level;
+        this.restore_data = restore_data;
         System.out.println(threadName + " " + toVisitURLs);
     }
 
     @Override
     public void run() {
 
+        if ("Spider1" == this.threadName && restore_data){
+            restore();
+        }
+       /*Makes all the threads wait for the others*/
+        try {
+            barrier.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
+        }
+
         while (conditions()) {
-
-//            if (current_size >= max_size) {
-//                currentLevel = max_level;
-//            }
-//            if (currentDocuments >= max_documents) {
-//                currentLevel = max_level;
-//            }
-
             boolean seed = true;
             changeLevel(seed);  //Splits the seed into different sublist
             seed = false;
@@ -186,7 +192,7 @@ public class Spider implements Runnable {
 
 //            size_toVisitURLs = toVisitURLs.size();                      //Gets the new size of the toVisitURLs list
             foundURLs.clear();                                          //Removes the values in the foundURLs list
-
+            backup();
             firstThread_UpperBound = toVisitURLs.size() / 4;
             secondThread_UpperBound = firstThread_UpperBound * 2;
             thirdThread_UpperBound = firstThread_UpperBound * 3;
@@ -256,7 +262,7 @@ public class Spider implements Runnable {
 
                 URL site = new URL(url);
 
-                exists_robots = getRobotTxt(site.getAuthority());   //TODO se cambio porque estaba buscando el robots.txt donde no debía
+                exists_robots = getRobotTxt(site.getAuthority());
 
                 main_website = new URL(url);
                 InputStream temporal = null;
@@ -267,7 +273,7 @@ public class Spider implements Runnable {
                 temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
                 BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));      //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
 
-                Pattern p = Pattern.compile("href=\"(https|http)?://(.*?)\"");  //TODO change this so that it ignores javascript and CSS
+                Pattern p = Pattern.compile("href=\"(https|http)?://(.*?)\"");
                 Matcher matcher;                                                                                //Will be used to apply the pattern to a string.
                 String temp;                                                                                    //Stores the url without all the other characters from the line.
 
@@ -489,6 +495,59 @@ public class Spider implements Runnable {
             stop = url.contains(temp);
         }
         return stop;
+    }
+
+    /**
+     * Backups the information of the urls that are visited by the crawler.
+     */
+    private void backup()
+    {
+
+        OnFile backup_file = new OnFile();
+        backup_file.clearFile("backup_visited", "txt");
+        backup_file.createFile("backup_visited","txt");
+        for (Object link : visitedURLs)
+        {
+            backup_file.writeLineInBackUpFile(link.toString(), "backup_visited");
+        }
+
+        OnFile backup_file_2 = new OnFile();
+        backup_file_2.clearFile("backup_toVisit", "txt");
+        backup_file_2.createFile("backup_toVisit","txt");
+        for (Object link : toVisitURLs)
+        {
+            backup_file_2.writeLineInBackUpFile(link.toString(), "backup_toVisit");
+        }
+
+        OnFile parameters = new OnFile();
+        parameters.clearFile("parameters", "txt");
+        parameters.createFile("parameters", "txt");
+        parameters.writeLineInBackUpFile(Integer.toString(max_size),"parameters");
+        parameters.writeLineInBackUpFile(Integer.toString(max_documents),"parameters");
+        parameters.writeLineInBackUpFile(Integer.toString(max_level),"parameters");
+        parameters.writeLineInBackUpFile(Integer.toString(current_size),"parameters");
+        parameters.writeLineInBackUpFile(Integer.toString(count),"parameters");
+        parameters.writeLineInBackUpFile(Integer.toString(currentLevel),"parameters");
+
+    }
+
+
+    /**
+     * Restores the information of an execution.
+     */
+
+    private void restore()
+    {
+        OnFile file = new OnFile();
+        toVisitURLs = file.readFile(".//backup_toVisit.txt");
+        visitedURLs = file.readFileHash(".//backup_visited.txt");
+        int[] parameters = file.readParameters(".//parameters.txt");
+        max_size = parameters[0];
+        max_documents = parameters[1];
+        max_level = parameters[2];
+        current_size = parameters[3];
+        count = parameters[4];
+        currentLevel = parameters[5];
     }
 
 }
