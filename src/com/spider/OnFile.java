@@ -45,7 +45,10 @@ public class OnFile {
      */
     public void createFile(String name, String type) {
         try {
-            file = new File(".//" + name + "." + type);
+            if(!type.isEmpty())
+                file = new File(".//" + name + "." + type);
+            else
+                file = new File(".//" + name);
             if (file.createNewFile()) {
                 System.out.println("Archivo " + name + "." + type + " creado exitosamente");
             } else {
@@ -61,7 +64,7 @@ public class OnFile {
      *
      * @param data
      */
-    private void writeInFile(String data) {
+    public void writeInFile(String data) {
         try {
             url = new File(".//urls.txt");
             FileWriter writer = new FileWriter(url, true);
@@ -143,10 +146,6 @@ public class OnFile {
             file_size = toIntExact(FileUtils.sizeOf(file));
             System.out.println("El archivo: " + file.getName() + " pesa " + file_size + " bytes.");
 
-//            if (current_size + file_size < max_size)
-//            {
-//                file.delete();
-//            }
         } else {
             System.out.println("Imposible descargar más información, el límite es de: " + max_size + "bytes.");
         }

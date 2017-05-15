@@ -3,7 +3,9 @@ package com.spider;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -50,18 +52,18 @@ public class Spider implements Runnable {
     private String threadName;                                                      //Contains the name that identifies each thread
 
     private URL main_website;                                                       //Contains the url of the website.
-    private int max_size; //= 10000 * 1024;                                              //Maximum size that could be downloaded by the crawler.
+    private int max_size; //= 10000 * 1024;                                         //Maximum size that could be downloaded by the crawler.
     private String protocol = "";                                                   //Stores the url protocol.
     private HashMap deniedUrls = new HashMap();                                     //Contains the disallowed urls by robots.txt.
 
-    private int toVisit_fromIndex = 0;          //Variable that represents the first element of the of the toVisitURLs sublist that each thread will use
-    private int toVisit_toIndex = 0;            //Variable that represents the last element of the of the toVisitURLs sublist that each thread will use
+    private int toVisit_fromIndex = 0;                                              //Variable that represents the first element of the of the toVisitURLs sublist that each thread will use
+    private int toVisit_toIndex = 0;                                                //Variable that represents the last element of the of the toVisitURLs sublist that each thread will use
 
     private List<String> thread_toVisitURLs;
 
     private boolean alreadyVisited = false;
-    private boolean restore_data = false;       //It is used to check if the information has to be restored from the backup.
-
+    private boolean restore_data = false;                                                 //It is used to check if the information has to be restored from the backup.
+    private static List<String> downloadedURLs;                                              //Contains the urls that has been downloaded.
 
     public Spider(String threadName, List<String> seed, int max_size, int max_documents, int max_level, boolean restore_data) {
         this.threadName = threadName;
@@ -70,6 +72,7 @@ public class Spider implements Runnable {
         this.max_documents = max_documents;
         this.max_level = max_level;
         this.restore_data = restore_data;
+        this.downloadedURLs = new ArrayList<String>();
         System.out.println(threadName + " " + toVisitURLs);
     }
 
@@ -93,10 +96,6 @@ public class Spider implements Runnable {
             changeLevel(seed);  //Splits the seed into different sublist
             seed = false;
 
-
-            /*Creates a sublist that corresponds to the URLs that each thread must check in each currentLevel*/
-//            List<String> thread_toVisitURLs = new ArrayList<>(toVisitURLs.subList(toVisit_fromIndex, toVisit_toIndex));
-//            toVisitURLs.clear();
             try {
                 /*Iterates over all the URLs in thread_toVisitURLs*/
                 for (Iterator<String> itr = thread_toVisitURLs.iterator(); itr.hasNext(); ) {
@@ -104,15 +103,13 @@ public class Spider implements Runnable {
                     String URL = itr.next();
                     System.out.println(threadName + " " + URL);
 
-                    mutex_visitedURLs.acquire();                //TODO si era necesario poner el mutex
+                    mutex_visitedURLs.acquire();
                     alreadyVisited = visitedURLs.add(URL);
                     mutex_visitedURLs.release();
 
                     if (alreadyVisited) {
                     /*If it hasn't been visited then it tries to download the file*/
                         if (!manageUrl(URL)) {
-                        /*If the download wasn't successful then it removes that URL from the list of visited URLs*/
-                            //visitedURLs.remove(URL);    //TODO check if it is needed to remove the URL if the download failed
                             System.out.println(URL + " no se descargó.");
                         }
                         /*Removes the URL from the thread_toVisitURLs list*/
@@ -156,7 +153,6 @@ public class Spider implements Runnable {
     {
         boolean condition = true;
         try {
-            //TODO: es necesaria una barrrera acá?
             mutex_current_level.acquire();
             if (currentLevel > max_level) {
                 condition = false;
@@ -187,10 +183,17 @@ public class Spider implements Runnable {
         if ("Spider1" == this.threadName) {
             /*Current thread is Spider1*/
 
-            if (!seed)
+            if (!seed){
                 toVisitURLs = new ArrayList<String>(foundURLs.values());    //Turns the foundURLs in the new toVisitURLs list
+                OnFile newFile = new OnFile();
+                for (String a : downloadedURLs) {
+                    newFile.writeInFile(a);
+                }
+                downloadedURLs.clear();
+            }
+            if (!downloadedURLs.isEmpty()){
 
-//            size_toVisitURLs = toVisitURLs.size();                      //Gets the new size of the toVisitURLs list
+            }
             foundURLs.clear();                                          //Removes the values in the foundURLs list
             backup();
             firstThread_UpperBound = toVisitURLs.size() / 4;
@@ -225,11 +228,9 @@ public class Spider implements Runnable {
             }
 
             /*Creates the sublist with the URLs that each thread will check in the next level*/
-//            System.out.println(threadName + " toVisit_fromIndex: " + toVisit_fromIndex + " toVisit_toIndex: " + toVisit_toIndex);
 
             this.thread_toVisitURLs = new ArrayList<>(toVisitURLs.subList(toVisit_fromIndex, toVisit_toIndex));
             barrier.await();
-            //toVisitURLs.clear();
 
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -256,10 +257,6 @@ public class Spider implements Runnable {
                 protocol = "http://";
             }
             try {
-                //            System.out.println(u.getAuthority());                                //Returns the url in a simple form. Example: www.google.com.
-                //            System.out.println(u.getRef());                                      //Returns the rest of the URL. Example: /home/theory.txt.
-                //            System.out.println(u.getFile());                                     //Returns the rest of the URL. Example: /home/theory.txt.
-
                 URL site = new URL(url);
 
                 exists_robots = getRobotTxt(site.getAuthority());
@@ -327,34 +324,40 @@ public class Spider implements Runnable {
         boolean success = false;
         try {
             URL link = new URL(url);
-            String a = link.getPath();
-
-            if (url.contains(".html")) {
+            HttpURLConnection connection = (HttpURLConnection)  link.openConnection();
+            connection.setRequestMethod("HEAD");
+            connection.setReadTimeout(5*1000);
+            connection.connect();
+            String content_type = connection.getContentType();
+            connection.disconnect();
+            if(connection.getContentType() == null){
+                content_type = "text/html";
+            }
+            if (content_type.contains("text/html")) {
                 success = downloadDocument(fromTheSameWebsite(url), "html");
-            } else if (url.contains(".htm")) {
+            } else if (content_type.contains("text/htm")) {
                 success = downloadDocument(fromTheSameWebsite(url), "htm");
-            } else if (url.contains(".xhtml")) {
+            } else if (content_type.contains("application/xhtml+xml")) {
                 success = downloadDocument(fromTheSameWebsite(url), "xhtml");
-            } else if (url.contains(".pdf")) {
+            } else if (content_type.contains("application/pdf")) {
                 success = downloadDocument(fromTheSameWebsite(url), "pdf");
-            } else if (url.contains(".doc")) {
-                if (url.contains(".docx")){
-                    success = downloadDocument(fromTheSameWebsite(url), "docx");
-                }
-                else {
-                    success = downloadDocument(fromTheSameWebsite(url), "doc");
-                }
-            } else if (url.contains(".odt")) {
+            } else if (content_type.contains("application/msword")) {
+                success = downloadDocument(fromTheSameWebsite(url), "doc");
+            } else if (content_type.contains("application/mswordapplication/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+                success = downloadDocument(fromTheSameWebsite(url), "docx");
+            } else if (content_type.contains("application/vnd.oasis.opendocument.text ")) {
                 success = downloadDocument(fromTheSameWebsite(url), "odt");
-            } else if (url.contains(".txt")) {
+            } else if (content_type.contains("text/plain")) {
                 success = downloadDocument(fromTheSameWebsite(url), "txt");
-            } else if (url.contains(".rtf")) {
+            } else if (content_type.contains("application/rtf.rtf")) {
                 success = downloadDocument(fromTheSameWebsite(url), "rtf");
-            } else if (link.getPath().equals("/")) {
-                success = downloadDocument(fromTheSameWebsite(url), "html");
             }
 
         } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (ProtocolException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
@@ -374,13 +377,16 @@ public class Spider implements Runnable {
             OnFile newFile = new OnFile();                                                                 //Creates a new file.
 
             mutex_count.acquire();
-            newFile.createFile(Integer.toString(count), type);                                             //Assigns the respective number of the document to the name of the file.
+            newFile.createFile(Integer.toString(count), "");                                             //Assigns the respective number of the document to the name of the file.
             ++count;
             mutex_count.release();
 
             mutex_current_size.acquire();
             current_size = newFile.downloadDocument(page, current_size, max_size);
-            newFile.writeUrlInFile(url,type);
+            //newFile.writeUrlInFile(url,type);
+            String data = url + " " + type + "\n";
+            Charset.forName("UTF-8").encode(data);
+            downloadedURLs.add(data);
             mutex_current_size.release();
 
             success = true;
@@ -428,7 +434,8 @@ public class Spider implements Runnable {
             //temporal = url.openStream();
 
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            if (200 != conn.getResponseCode()) {                //TODO Retorna una excepcion si hace un getInputStream y el archivo robots.txt no existe
+            conn.setReadTimeout(5*1000);
+            if (200 != conn.getResponseCode()) {                //Returns an exception if it does a getInputStream and robots.txt file doesn't exists.
                 System.out.println(url + " robots.txt NO EXISTE");
                 robotsExists = false;
             } else {
@@ -436,7 +443,7 @@ public class Spider implements Runnable {
                 temporal_data = new DataInputStream(new BufferedInputStream(temporal));                         //Converts the InputStream (bytes chain) into a DataInputStream. This allow to manipulate the data as a java primitive data type.
                 BufferedReader temporal_buffer = new BufferedReader(new InputStreamReader(temporal_data));     //Converts DataInputStream to a BufferedReader (this is for allow to read correctly all the characters from the stream).
                 String temp;
-
+                //conn.disconnect();
 
                 while (((information = temporal_buffer.readLine()) != null)) {                         //Copies line by line all the information received by the URL class.
                     if (information.contains("User-agent: *")) {
@@ -456,22 +463,7 @@ public class Spider implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //Esto hay que borrarlo
-//        for (String hi : deniedUrls)
-//            System.out.println(hi);
 
-//        // Get a set of the entries
-//        Set set = deniedUrls.entrySet();
-//
-//        // Get an iterator
-//        Iterator i = set.iterator();
-//
-//        // Display elements
-//        while(i.hasNext()) {
-//            Map.Entry me = (Map.Entry) i.next();
-//            //System.out.print(me.getKey() + ": ");
-//            System.out.println(me.getValue());
-//        }
         return robotsExists;
     }
 

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 
 /**
- * Created by jedups on 29/04/2017.
+ *  Manages and creates the threads.
  */
 public class WebCrawler {
 
@@ -21,6 +21,13 @@ public class WebCrawler {
 
     int level = 5;
 
+    /**
+     * Initializes the threads.
+     * @param max_size
+     * @param max_document
+     * @param max_level
+     * @param restore_data
+     */
     public void startThreads (int max_size, int max_document, int max_level, boolean restore_data) {
 
         max_size = max_size*1000000;
@@ -41,6 +48,9 @@ public class WebCrawler {
         fourthThread.start();
     }
 
+    /**
+     * Loads the seeds file.
+     */
     public void loadSeeds () {
         OnFile file = new OnFile();
         file.createUrlFile();
